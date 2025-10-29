@@ -1,7 +1,7 @@
 # Graphics_lab-CSE_426
 
 
-**Please Use these data to Input & Run**
+**Use the following inputs to run the program.**
 
 #Task 1
 
