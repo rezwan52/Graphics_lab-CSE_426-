@@ -1,0 +1,22 @@
+#Task 1
+
+(x1,y1): 200 300
+(x2,y2): 400 600
+Thickness: 3
+
+#Task 2
+
+Enter number of circles: 6
+Enter maximum radius: 100
+Enter thickness of circles: 3
+Enter inner circle color (r g b, 0-1): 1 0.5 0.8
+Enter outer circle color (r g b, 0-1): 0.5 0.2 0.8
+
+
+#Task 3
+
+Enter clipping window (xmin ymin xmax ymax): 200 200 600 400
+Enter number of lines: 3
+Enter line 1 (x0 y0 x1 y1): 100 100 700 500
+Enter line 2 (x0 y0 x1 y1): 300 100 500 450
+Enter line 3 (x0 y0 x1 y1): 250 250 550 350
