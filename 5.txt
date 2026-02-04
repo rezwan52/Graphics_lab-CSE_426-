@@ -1,0 +1,183 @@
+#include <GL/glut.h>
+#define MAX_UNDO 100  // practically unlimited
+#define MAX_REDO 5
+
+typedef struct {
+    float rotationAngle;
+    float scaleFactor;
+    float translateX;
+    float translateY;
+} TransformState;
+
+float rotationAngle = 0.0f;
+float scaleFactor = 1.0f;
+float translateX = 0.0f;
+float translateY = 0.0f;
+
+// Undo stack
+TransformState undoHistory[MAX_UNDO];
+int undoTop = 0;
+
+// Redo stack (circular)
+TransformState redoHistory[MAX_REDO];
+int redoStart = 0, redoCount = 0;
+
+// ---------- Push current state to Undo ----------
+void pushUndoState() {
+    if (undoTop < MAX_UNDO - 1) {
+        undoTop++;
+        undoHistory[undoTop] = { rotationAngle, scaleFactor, translateX, translateY };
+    } else {
+        for (int i = 1; i < MAX_UNDO; i++)
+            undoHistory[i - 1] = undoHistory[i];
+        undoHistory[MAX_UNDO - 1] = { rotationAngle, scaleFactor, translateX, translateY };
+    }
+}
+
+// ---------- Push current state to Redo (circular) ----------
+void pushRedoState() {
+    int insertIndex = (redoStart + redoCount) % MAX_REDO;
+    redoHistory[insertIndex] = { rotationAngle, scaleFactor, translateX, translateY };
+    if (redoCount < MAX_REDO)
+        redoCount++;
+    else
+        redoStart = (redoStart + 1) % MAX_REDO; // overwrite oldest
+}
+
+// ---------- Pop last redo state ----------
+bool popRedoState(TransformState *out) {
+    if (redoCount == 0) return false;
+    int lastIndex = (redoStart + redoCount - 1) % MAX_REDO;
+    *out = redoHistory[lastIndex];
+    redoCount--;
+    return true;
+}
+
+// ---------- Display ----------
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);
+    glLoadIdentity();
+
+    glTranslatef(translateX, translateY, 0.0f);
+    glTranslatef(225, 175, 0.0f);
+    glRotatef(rotationAngle, 0.0f, 0.0f, 1.0f);
+    glScalef(scaleFactor, scaleFactor, 1.0f);
+    glTranslatef(-225, -175, 0.0f);
+
+    glColor3f(1.0f, 0.0f, 1.0f);
+    glBegin(GL_TRIANGLES);
+    glVertex2f(150.0f, 150.0f);
+    glVertex2f(300.0f, 150.0f);
+    glVertex2f(225.0f, 225.0f);
+    glEnd();
+
+    glFlush();
+}
+
+// ---------- Menu ----------
+void menu(int option) {
+    TransformState temp;
+    switch(option) {
+        case 1: // Reset
+            rotationAngle = 0.0f;
+            scaleFactor = 1.0f;
+            translateX = 0.0f;
+            translateY = 0.0f;
+            undoTop = 0;
+            redoStart = redoCount = 0;
+            undoHistory[0] = {rotationAngle, scaleFactor, translateX, translateY};
+            break;
+
+        case 2: // Rotate +15
+            pushUndoState();
+            rotationAngle += 15.0f;
+            redoStart = redoCount = 0; // New action invalidates redo
+            break;
+
+        case 3: // Scale x1.5
+            pushUndoState();
+            scaleFactor *= 1.5f;
+            redoStart = redoCount = 0;
+            break;
+
+        case 4: // Translate +100,+100
+            pushUndoState();
+            translateX += 100.0f;
+            translateY += 100.0f;
+            redoStart = redoCount = 0;
+            break;
+
+        case 5: // Scale x3
+            pushUndoState();
+            scaleFactor *= 3.0f;
+            redoStart = redoCount = 0;
+            break;
+
+        case 6: // Undo
+            if (undoTop > 0) {
+                // Save current state to redo (circular)
+                pushRedoState();
+
+                // Restore previous undo state
+                undoTop--;
+                rotationAngle = undoHistory[undoTop].rotationAngle;
+                scaleFactor = undoHistory[undoTop].scaleFactor;
+                translateX = undoHistory[undoTop].translateX;
+                translateY = undoHistory[undoTop].translateY;
+            }
+            break;
+
+        case 7: // Redo
+            if (popRedoState(&temp)) {
+                // Save current state to undo
+                pushUndoState();
+
+                // Restore redo state
+                rotationAngle = temp.rotationAngle;
+                scaleFactor = temp.scaleFactor;
+                translateX = temp.translateX;
+                translateY = temp.translateY;
+            }
+            break;
+    }
+
+    glutPostRedisplay();
+}
+
+// ---------- Init ----------
+void init() {
+    glClearColor(0.0, 0.0, 0.0, 1.0);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    gluOrtho2D(0.0, 800.0, 0.0, 800.0);
+    glMatrixMode(GL_MODELVIEW);
+}
+
+// ---------- Main ----------
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);
+    glutInitWindowSize(800, 800);
+    glutCreateWindow("Undo Unlimited / Redo Last 5");
+
+    init();
+    glutDisplayFunc(display);
+
+    glutCreateMenu(menu);
+    glutAddMenuEntry("Reset", 1);
+    glutAddMenuEntry("Rotate +15", 2);
+    glutAddMenuEntry("Scale x1.5", 3);
+    glutAddMenuEntry("Translate (100,100)", 4);
+    glutAddMenuEntry("Scale x3", 5);
+    glutAddMenuEntry("Undo", 6);
+    glutAddMenuEntry("Redo", 7);
+    glutAttachMenu(GLUT_RIGHT_BUTTON);
+
+    // Initialize undo history
+    undoHistory[0] = {rotationAngle, scaleFactor, translateX, translateY};
+    undoTop = 1;
+    redoStart = redoCount = 0;
+
+    glutMainLoop();
+    return 0;
+}
